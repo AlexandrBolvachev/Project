@@ -164,7 +164,7 @@ if __name__ == '__main__':
         for event in pygame.event.get():
             if event.type == pygame.QUIT:
                 running = False
-            if event.type == pygame.K_SPACE:
+            if event.type == pygame.K_SPACE and event.type == pygame.KEYDOWN:
                 pass
             if event.type == PLAYER_LEFT:
                 player.left()
