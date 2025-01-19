@@ -1,6 +1,5 @@
 import sys
 import pygame
-from random import randrange
 
 
 def terminate():
@@ -38,7 +37,7 @@ class Player(pygame.sprite.Sprite):
         self.image = player_image0
         self.rect = self.image.get_rect().move(
             tile_size * pos_x, tile_size * pos_y + offset)
-        self.step = 3
+        self.step = 1
 
     def left(self):
         self.image = player_image270
@@ -64,10 +63,22 @@ class Player(pygame.sprite.Sprite):
         if not other or other.rect.y < self.rect.y:
             self.rect.y += self.step
 
-class Missile(pygame.sprite.Sprite):
-    def __init__(self, player, pos_x, pos_y):
-        super().__init__(missile, all_sprites)
+    def coords(self):
+        return self.rect
 
+class Missile(pygame.sprite.Sprite):
+    def __init__(self, pos_x, pos_y, *size):
+        super().__init__(missile_group, all_sprites)
+        if rotate == 0:
+            self.image = missile_image0
+        elif rotate == 90:
+            self.image = missile_image90
+        elif rotate == 180:
+            self.image = missile_image180
+        elif rotate == 270:
+            self.image = missile_image270
+        self.rect = self.image.get_rect().move(
+            tile_size * pos_x, tile_size * pos_y + offset)
 
 
 def load_level(screen, level_num):
@@ -76,6 +87,7 @@ def load_level(screen, level_num):
     all_sprites.empty()
     tiles_group.empty()
     player_group.empty()
+    missile_group.empty()
     filename = f"levels/level_{level_num:02d}.txt"
     with open(filename, 'r') as mapFile:
         level = [[tile_type[s] for s in line.strip()] for line in mapFile]
@@ -98,8 +110,8 @@ def draw_level(screen):
 
 def start_screen():
     intro_text = ["Правила игры",
-                  "Клавиши со стрелками перемещают героя,",
-                  "Ваша задача собрать все бонусы"]
+                  "Клавиши со стрелками перемещают танк,",
+                  "Ваша задача уничтожить все танки"]
 
     load_level(screen, 0)
     tiles_group.draw(screen)
@@ -140,7 +152,7 @@ if __name__ == '__main__':
     all_sprites = pygame.sprite.Group()
     tiles_group = pygame.sprite.Group()
     player_group = pygame.sprite.Group()
-    missile = pygame.sprite.Group()
+    missile_group = pygame.sprite.Group()
     PLAYER_UP = pygame.USEREVENT + 1
     PLAYER_DOWN = pygame.USEREVENT + 2
     PLAYER_LEFT = pygame.USEREVENT + 3
@@ -149,12 +161,16 @@ if __name__ == '__main__':
 
     screen = pygame.display.set_mode(size)
     clock = pygame.time.Clock()
-    player_image0 = load_image('tank0.png', -1)
-    player_image90 = load_image('tank90.png', -1)
+    player_image0 = load_image('tank0.png', (255, 255, 255))
+    player_image90 = load_image('tank90.png', (255, 255, 255))
     player_image180 = load_image('tank180.png', (255, 255, 255))
     player_image270 = load_image('tank270.png', (255, 255, 255))
+    missile_image0 = load_image('missile0.png', (255, 255, 255))
+    missile_image90 = load_image('missile90.png', (255, 255, 255))
+    missile_image180 = load_image('missile180.png', (255, 255, 255))
+    missile_image270 = load_image('missile270.png', (255, 255, 255))
     tile_images = [load_image('background.png'), load_image('stone.png')]
-
+    rotate = 0
     start_screen()
 
     running = True
@@ -164,38 +180,46 @@ if __name__ == '__main__':
         for event in pygame.event.get():
             if event.type == pygame.QUIT:
                 running = False
-            if event.type == pygame.K_SPACE and event.type == pygame.KEYDOWN:
-                pass
             if event.type == PLAYER_LEFT:
+                rotate = 270
                 player.left()
             elif event.type == PLAYER_RIGHT:
+                rotate = 90
                 player.right()
             elif event.type == PLAYER_UP:
+                rotate = 0
                 player.up()
             elif event.type == PLAYER_DOWN:
+                rotate = 180
                 player.down()
             if event.type == pygame.KEYDOWN:
+                if event.key == 32:
+                    Missile(*player.coords())
                 if event.key == pygame.K_LEFT:
+                    rotate = 270
                     player.left()
-                    pygame.time.set_timer(PLAYER_LEFT, 50)
+                    pygame.time.set_timer(PLAYER_LEFT, 17)
                     pygame.time.set_timer(PLAYER_RIGHT, 0)
                     pygame.time.set_timer(PLAYER_UP, 0)
                     pygame.time.set_timer(PLAYER_DOWN, 0)
                 elif event.key == pygame.K_RIGHT:
+                    rotate = 90
                     player.right()
-                    pygame.time.set_timer(PLAYER_RIGHT, 50)
+                    pygame.time.set_timer(PLAYER_RIGHT, 17)
                     pygame.time.set_timer(PLAYER_LEFT, 0)
                     pygame.time.set_timer(PLAYER_UP, 0)
                     pygame.time.set_timer(PLAYER_DOWN, 0)
                 elif event.key == pygame.K_UP:
+                    rotate = 0
                     player.up()
-                    pygame.time.set_timer(PLAYER_UP, 50)
+                    pygame.time.set_timer(PLAYER_UP, 17)
                     pygame.time.set_timer(PLAYER_LEFT, 0)
                     pygame.time.set_timer(PLAYER_RIGHT, 0)
                     pygame.time.set_timer(PLAYER_DOWN, 0)
                 elif event.key == pygame.K_DOWN:
+                    rotate = 180
                     player.down()
-                    pygame.time.set_timer(PLAYER_DOWN, 50)
+                    pygame.time.set_timer(PLAYER_DOWN, 17)
                     pygame.time.set_timer(PLAYER_LEFT, 0)
                     pygame.time.set_timer(PLAYER_RIGHT, 0)
                     pygame.time.set_timer(PLAYER_UP, 0)
