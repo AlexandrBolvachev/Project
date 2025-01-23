@@ -1,6 +1,5 @@
 import sys
 import pygame
-from PIL.ImImagePlugin import number
 
 
 def terminate():
@@ -33,8 +32,9 @@ class Tile(pygame.sprite.Sprite):
 
 
 class Player(pygame.sprite.Sprite):
-    def __init__(self, pos_x, pos_y):
+    def __init__(self, pos_x, pos_y, hp):
         super().__init__(player_group, all_sprites, tanks_group)
+        self.hp = hp
         self.image = player_image0
         self.rect = self.image.get_rect().move(
             tile_size * pos_x, tile_size * pos_y + offset)
@@ -67,6 +67,12 @@ class Player(pygame.sprite.Sprite):
     def coords(self):
         return self.rect
 
+    def update(self, *args, **kwargs):
+        if pygame.sprite.spritecollideany(self, missile_group):
+            self.hp -= 1
+            health()
+        if self.hp == 0:
+            gameover()
 class Missile(pygame.sprite.Sprite):
     def __init__(self, pos_x, pos_y, *size):
         self.side_shoot = rotate
@@ -82,7 +88,7 @@ class Missile(pygame.sprite.Sprite):
         elif self.side_shoot == 90:
             self.rect = self.image.get_rect().move(self.pos_x + self.size[0] + 1, self.pos_y + 20)
         elif self.side_shoot == 180:
-            self.rect = self.image.get_rect().move(self.pos_x + 20, self.pos_y + size[1] + 1)
+            self.rect = self.image.get_rect().move(self.pos_x + 20, self.pos_y + self.size[1] + 1)
         elif self.side_shoot == 270:
             self.rect = self.image.get_rect().move(self.pos_x - 21, self.pos_y + 19)
 
@@ -117,14 +123,16 @@ class Missile(pygame.sprite.Sprite):
                 self.rect.x -= self.step
 
 # class Health(pygame.sprite.Sprite):
-#     def __init__(self, number):
-#         self.number = number
+#     def __init__(self, x, y, cnt):
+#         self.cnt = cnt
+#         self.x = x
+#         self.y = y
 #         super().__init__(all_sprites)
 #         self.get_image()
 #         self.get_rect1()
 #
 #     def get_image(self):
-#         if self.number == 1:
+#         if self.cnt == 1:
 #             self.image = hp1
 #         else:
 #             self.image = hp0
@@ -150,7 +158,7 @@ def load_level(screen, level_num):
         for x in range(len(level[y])):
             screen.blit(tile_images[0], (tile_size * x, tile_size * y + offset))
             if level[y][x] == 10:
-                new_player = Player(x, y)
+                new_player = Player(x, y, hp)
             elif level[y][x]:
                 Tile(level[y][x], x, y)
     return new_player, len(level[0]), len(level)
@@ -198,6 +206,26 @@ def start_screen():
         pygame.display.flip()
         clock.tick(FPS)
 
+def gameover():
+    pygame.time.set_timer(PLAYER_UP, 0)
+    pygame.time.set_timer(PLAYER_DOWN, 0)
+    pygame.time.set_timer(PLAYER_LEFT, 0)
+    pygame.time.set_timer(PLAYER_RIGHT, 0)
+    pygame.time.set_timer(PLAYER_RELOAD, 0)
+    pygame.time.set_timer(PLAYER_SHOOT, 0)
+    while True:
+        for event in pygame.event.get():
+            if event.type == pygame.QUIT:
+                terminate()
+            elif event.type == pygame.KEYDOWN or \
+                    event.type == pygame.MOUSEBUTTONDOWN:
+                return
+        pygame.display.flip()
+        clock.tick(FPS)
+
+def health():
+
+
 
 
 
@@ -207,6 +235,9 @@ if __name__ == '__main__':
     tile_size = 16
     offset = 80
     FPS = 50
+    missile_ready = 1
+    rotate = 0
+    hp = 3
     all_sprites = pygame.sprite.Group()
     tiles_group = pygame.sprite.Group()
     player_group = pygame.sprite.Group()
@@ -235,9 +266,9 @@ if __name__ == '__main__':
     hp1 = load_image('hp1.png', (255, 255, 255))
     hp0 = load_image('hp0.png', (255, 255, 255))
     tile_images = [load_image('background.png'), load_image('stone.png')]
-    rotate = 0
+
     start_screen()
-    missile_ready = 1
+
     running = True
     player, level_size_x, level_size_y = load_level(screen, 1)
 
@@ -310,5 +341,5 @@ if __name__ == '__main__':
         all_sprites.draw(screen)
         all_sprites.update()
         pygame.display.flip()
-        clock.tick(50)
+        clock.tick(FPS)
     pygame.quit()
