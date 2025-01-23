@@ -1,5 +1,6 @@
 import sys
 import pygame
+from PIL.ImImagePlugin import number
 
 
 def terminate():
@@ -33,11 +34,11 @@ class Tile(pygame.sprite.Sprite):
 
 class Player(pygame.sprite.Sprite):
     def __init__(self, pos_x, pos_y):
-        super().__init__(player_group, all_sprites)
+        super().__init__(player_group, all_sprites, tanks_group)
         self.image = player_image0
         self.rect = self.image.get_rect().move(
             tile_size * pos_x, tile_size * pos_y + offset)
-        self.step = 1
+        self.step = 2
 
     def left(self):
         self.image = player_image270
@@ -68,7 +69,24 @@ class Player(pygame.sprite.Sprite):
 
 class Missile(pygame.sprite.Sprite):
     def __init__(self, pos_x, pos_y, *size):
+        self.side_shoot = rotate
+        self.pos_x, self.pos_y, self.size = pos_x, pos_y, size
         super().__init__(missile_group, all_sprites)
+        self.get_image1()
+        self.get_rect1()
+        self.step = 3
+
+    def get_rect1(self):
+        if self.side_shoot == 0:
+            self.rect = self.image.get_rect().move(self.pos_x + 20, self.pos_y - 21)
+        elif self.side_shoot == 90:
+            self.rect = self.image.get_rect().move(self.pos_x + self.size[0] + 1, self.pos_y + 20)
+        elif self.side_shoot == 180:
+            self.rect = self.image.get_rect().move(self.pos_x + 20, self.pos_y + size[1] + 1)
+        elif self.side_shoot == 270:
+            self.rect = self.image.get_rect().move(self.pos_x - 21, self.pos_y + 19)
+
+    def get_image1(self):
         if rotate == 0:
             self.image = missile_image0
         elif rotate == 90:
@@ -77,8 +95,44 @@ class Missile(pygame.sprite.Sprite):
             self.image = missile_image180
         elif rotate == 270:
             self.image = missile_image270
-        self.rect = self.image.get_rect().move(
-            tile_size * pos_x, tile_size * pos_y + offset)
+
+    def check(self):
+        if pygame.sprite.spritecollideany(self, tiles_group):
+            self.kill()
+            return 0
+        elif pygame.sprite.spritecollideany(self, tanks_group):
+            self.kill()
+            return 0
+        return 1
+
+    def update(self, *args, **kwargs):
+        if self.check():
+            if self.side_shoot == 0:
+                self.rect.y -= self.step
+            elif self.side_shoot == 90:
+                self.rect.x += self.step
+            elif self.side_shoot == 180:
+                self.rect.y += self.step
+            elif self.side_shoot == 270:
+                self.rect.x -= self.step
+
+# class Health(pygame.sprite.Sprite):
+#     def __init__(self, number):
+#         self.number = number
+#         super().__init__(all_sprites)
+#         self.get_image()
+#         self.get_rect1()
+#
+#     def get_image(self):
+#         if self.number == 1:
+#             self.image = hp1
+#         else:
+#             self.image = hp0
+#
+#     def get_rect1(self):
+#         self.rect =
+
+
 
 
 def load_level(screen, level_num):
@@ -88,6 +142,7 @@ def load_level(screen, level_num):
     tiles_group.empty()
     player_group.empty()
     missile_group.empty()
+    tanks_group.empty()
     filename = f"levels/level_{level_num:02d}.txt"
     with open(filename, 'r') as mapFile:
         level = [[tile_type[s] for s in line.strip()] for line in mapFile]
@@ -111,6 +166,7 @@ def draw_level(screen):
 def start_screen():
     intro_text = ["Правила игры",
                   "Клавиши со стрелками перемещают танк,",
+                  "Пробел - стрельба,",
                   "Ваша задача уничтожить все танки"]
 
     load_level(screen, 0)
@@ -143,6 +199,8 @@ def start_screen():
         clock.tick(FPS)
 
 
+
+
 if __name__ == '__main__':
     pygame.init()
     size = width, height = 1088, 592
@@ -153,11 +211,16 @@ if __name__ == '__main__':
     tiles_group = pygame.sprite.Group()
     player_group = pygame.sprite.Group()
     missile_group = pygame.sprite.Group()
+    tanks_group = pygame.sprite.Group()
     PLAYER_UP = pygame.USEREVENT + 1
     PLAYER_DOWN = pygame.USEREVENT + 2
     PLAYER_LEFT = pygame.USEREVENT + 3
     PLAYER_RIGHT = pygame.USEREVENT + 4
     PLAYER_SHOOT = pygame.USEREVENT + 5
+    PLAYER_RELOAD = pygame.USEREVENT + 6
+
+
+
 
     screen = pygame.display.set_mode(size)
     clock = pygame.time.Clock()
@@ -169,10 +232,12 @@ if __name__ == '__main__':
     missile_image90 = load_image('missile90.png', (255, 255, 255))
     missile_image180 = load_image('missile180.png', (255, 255, 255))
     missile_image270 = load_image('missile270.png', (255, 255, 255))
+    hp1 = load_image('hp1.png', (255, 255, 255))
+    hp0 = load_image('hp0.png', (255, 255, 255))
     tile_images = [load_image('background.png'), load_image('stone.png')]
     rotate = 0
     start_screen()
-
+    missile_ready = 1
     running = True
     player, level_size_x, level_size_y = load_level(screen, 1)
 
@@ -180,6 +245,11 @@ if __name__ == '__main__':
         for event in pygame.event.get():
             if event.type == pygame.QUIT:
                 running = False
+            if event.type == PLAYER_SHOOT:
+                missile_group.update()
+                pygame.time.set_timer(PLAYER_SHOOT, 5)
+            if event.type == PLAYER_RELOAD:
+                missile_ready = 1
             if event.type == PLAYER_LEFT:
                 rotate = 270
                 player.left()
@@ -193,8 +263,11 @@ if __name__ == '__main__':
                 rotate = 180
                 player.down()
             if event.type == pygame.KEYDOWN:
-                if event.key == 32:
+                if event.key == 32 and missile_ready:
                     Missile(*player.coords())
+                    pygame.time.set_timer(PLAYER_SHOOT, 5)
+                    pygame.time.set_timer(PLAYER_RELOAD, 2000)
+                    missile_ready = 0
                 if event.key == pygame.K_LEFT:
                     rotate = 270
                     player.left()
