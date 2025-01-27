@@ -32,7 +32,7 @@ class Tile(pygame.sprite.Sprite):
 
 
 class Player(pygame.sprite.Sprite):
-    def __init__(self, pos_x, pos_y, hp):
+    def __init__(self, pos_x, pos_y):
         super().__init__(player_group, all_sprites, tanks_group)
         self.hp = hp
         self.image = player_image0
@@ -69,37 +69,39 @@ class Player(pygame.sprite.Sprite):
 
     def update(self, *args, **kwargs):
         if pygame.sprite.spritecollideany(self, missile_group):
-            self.hp -= 1
-            health()
-        if self.hp == 0:
-            gameover()
+            hp[hp.count(1) - 1] = 0
+        health()
+        # if hp.count(1) == 0:
+        #     gameover()
+
+
 class Missile(pygame.sprite.Sprite):
-    def __init__(self, pos_x, pos_y, *size):
+    def __init__(self, pos_x, pos_y, size_x, size_y, rotate):
         self.side_shoot = rotate
-        self.pos_x, self.pos_y, self.size = pos_x, pos_y, size
+        self.pos_x, self.pos_y, self.size_x, self.size_y = pos_x, pos_y, size_x, size_y
         super().__init__(missile_group, all_sprites)
         self.get_image1()
         self.get_rect1()
-        self.step = 3
+        self.step = 5
 
     def get_rect1(self):
         if self.side_shoot == 0:
-            self.rect = self.image.get_rect().move(self.pos_x + 20, self.pos_y - 21)
+            self.rect = self.image.get_rect().move(self.pos_x + self.size_x // 2 - 5, self.pos_y - 20)
         elif self.side_shoot == 90:
-            self.rect = self.image.get_rect().move(self.pos_x + self.size[0] + 1, self.pos_y + 20)
+            self.rect = self.image.get_rect().move(self.pos_x + self.size_x, self.pos_y + self.size_y // 2 - 5)
         elif self.side_shoot == 180:
-            self.rect = self.image.get_rect().move(self.pos_x + 20, self.pos_y + self.size[1] + 1)
+            self.rect = self.image.get_rect().move(self.pos_x + self.size_x // 2 - 5, self.pos_y + self.size_y)
         elif self.side_shoot == 270:
-            self.rect = self.image.get_rect().move(self.pos_x - 21, self.pos_y + 19)
+            self.rect = self.image.get_rect().move(self.pos_x - 20, self.pos_y + self.size_y // 2 - 5)
 
     def get_image1(self):
-        if rotate == 0:
+        if self.side_shoot == 0:
             self.image = missile_image0
-        elif rotate == 90:
+        elif self.side_shoot == 90:
             self.image = missile_image90
-        elif rotate == 180:
+        elif self.side_shoot == 180:
             self.image = missile_image180
-        elif rotate == 270:
+        elif self.side_shoot == 270:
             self.image = missile_image270
 
     def check(self):
@@ -122,25 +124,6 @@ class Missile(pygame.sprite.Sprite):
             elif self.side_shoot == 270:
                 self.rect.x -= self.step
 
-# class Health(pygame.sprite.Sprite):
-#     def __init__(self, x, y, cnt):
-#         self.cnt = cnt
-#         self.x = x
-#         self.y = y
-#         super().__init__(all_sprites)
-#         self.get_image()
-#         self.get_rect1()
-#
-#     def get_image(self):
-#         if self.cnt == 1:
-#             self.image = hp1
-#         else:
-#             self.image = hp0
-#
-#     def get_rect1(self):
-#         self.rect =
-
-
 
 
 def load_level(screen, level_num):
@@ -158,7 +141,7 @@ def load_level(screen, level_num):
         for x in range(len(level[y])):
             screen.blit(tile_images[0], (tile_size * x, tile_size * y + offset))
             if level[y][x] == 10:
-                new_player = Player(x, y, hp)
+                new_player = Player(x, y)
             elif level[y][x]:
                 Tile(level[y][x], x, y)
     return new_player, len(level[0]), len(level)
@@ -206,26 +189,29 @@ def start_screen():
         pygame.display.flip()
         clock.tick(FPS)
 
-def gameover():
-    pygame.time.set_timer(PLAYER_UP, 0)
-    pygame.time.set_timer(PLAYER_DOWN, 0)
-    pygame.time.set_timer(PLAYER_LEFT, 0)
-    pygame.time.set_timer(PLAYER_RIGHT, 0)
-    pygame.time.set_timer(PLAYER_RELOAD, 0)
-    pygame.time.set_timer(PLAYER_SHOOT, 0)
-    while True:
-        for event in pygame.event.get():
-            if event.type == pygame.QUIT:
-                terminate()
-            elif event.type == pygame.KEYDOWN or \
-                    event.type == pygame.MOUSEBUTTONDOWN:
-                return
-        pygame.display.flip()
-        clock.tick(FPS)
+# def gameover():
+#     pygame.time.set_timer(PLAYER_UP, 0)
+#     pygame.time.set_timer(PLAYER_DOWN, 0)
+#     pygame.time.set_timer(PLAYER_LEFT, 0)
+#     pygame.time.set_timer(PLAYER_RIGHT, 0)
+#     pygame.time.set_timer(PLAYER_RELOAD, 0)
+#     pygame.time.set_timer(TEST_EVENT, 0)
+#     while True:
+#         for event in pygame.event.get():
+#             if event.type == pygame.QUIT:
+#                 terminate()
+#             elif event.type == pygame.KEYDOWN or \
+#                     event.type == pygame.MOUSEBUTTONDOWN:
+#                 return
+#         pygame.display.flip()
+#         clock.tick(FPS)
 
 def health():
-
-
+    for i in range(min(len(hp), 10)):
+        if hp[i]:
+            screen.blit(hp1, (48 * i, 0))
+        else:
+            screen.blit(hp0, (48 * i, 0))
 
 
 
@@ -238,6 +224,13 @@ if __name__ == '__main__':
     missile_ready = 1
     rotate = 0
     hp = 3
+    hp = [1 for i in range(hp)]
+    # статистика
+    cnt_hits = 0
+    cnt_shots_fire = 0
+    cnt_enemy_destroyed = 0
+
+
     all_sprites = pygame.sprite.Group()
     tiles_group = pygame.sprite.Group()
     player_group = pygame.sprite.Group()
@@ -247,14 +240,15 @@ if __name__ == '__main__':
     PLAYER_DOWN = pygame.USEREVENT + 2
     PLAYER_LEFT = pygame.USEREVENT + 3
     PLAYER_RIGHT = pygame.USEREVENT + 4
-    PLAYER_SHOOT = pygame.USEREVENT + 5
+    TEST_EVENT = pygame.USEREVENT + 5
     PLAYER_RELOAD = pygame.USEREVENT + 6
-
 
 
 
     screen = pygame.display.set_mode(size)
     clock = pygame.time.Clock()
+
+
     player_image0 = load_image('tank0.png', (255, 255, 255))
     player_image90 = load_image('tank90.png', (255, 255, 255))
     player_image180 = load_image('tank180.png', (255, 255, 255))
@@ -265,6 +259,11 @@ if __name__ == '__main__':
     missile_image270 = load_image('missile270.png', (255, 255, 255))
     hp1 = load_image('hp1.png', (255, 255, 255))
     hp0 = load_image('hp0.png', (255, 255, 255))
+    control = [
+        load_image('down.png', -1), load_image('up.png', -1),
+        load_image('left.png', -1), load_image('right.png', -1),
+        load_image('space.png', -1)
+    ]
     tile_images = [load_image('background.png'), load_image('stone.png')]
 
     start_screen()
@@ -272,13 +271,22 @@ if __name__ == '__main__':
     running = True
     player, level_size_x, level_size_y = load_level(screen, 1)
 
+    #-----------------------------------------------------------------
+
+    test = 0
+
+    #-----------------------------------------------------------------
     while running:
         for event in pygame.event.get():
             if event.type == pygame.QUIT:
                 running = False
-            if event.type == PLAYER_SHOOT:
-                missile_group.update()
-                pygame.time.set_timer(PLAYER_SHOOT, 5)
+            #---------------------------------------------
+            # для теста
+
+            if event.type == TEST_EVENT:
+                Missile(400, offset + tile_size * 2 + 1, 0, 0, 180)
+
+            # --------------------------------------------
             if event.type == PLAYER_RELOAD:
                 missile_ready = 1
             if event.type == PLAYER_LEFT:
@@ -294,9 +302,22 @@ if __name__ == '__main__':
                 rotate = 180
                 player.down()
             if event.type == pygame.KEYDOWN:
-                if event.key == 32 and missile_ready:
-                    Missile(*player.coords())
-                    pygame.time.set_timer(PLAYER_SHOOT, 5)
+
+                # --------------------------------------------
+                # для теста
+
+                if event.key == pygame.K_v and event.type == pygame.KEYDOWN:
+                    test = (test + 1) % 2
+                    if test:
+                        pygame.time.set_timer(TEST_EVENT, 1100)
+                    else:
+                        pygame.time.set_timer(TEST_EVENT, 0)
+
+                #---------------------------------------------
+
+                if event.key == pygame.K_SPACE and missile_ready:
+                    cnt_shots_fire += 1
+                    Missile(*player.coords(), rotate)
                     pygame.time.set_timer(PLAYER_RELOAD, 2000)
                     missile_ready = 0
                 if event.key == pygame.K_LEFT:
@@ -337,9 +358,12 @@ if __name__ == '__main__':
                 elif event.key == pygame.K_DOWN:
                     pygame.time.set_timer(PLAYER_DOWN, 0)
 
+
         draw_level(screen)
         all_sprites.draw(screen)
         all_sprites.update()
+        for i in range(5):
+            screen.blit(control[i], (width // 2 + 100 + 70 * i, offset // 2 - 28))
         pygame.display.flip()
         clock.tick(FPS)
     pygame.quit()
