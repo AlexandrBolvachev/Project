@@ -39,40 +39,32 @@ class Player(pygame.sprite.Sprite):
             tile_size * pos_x, tile_size * pos_y + offset)
         self.step = 2
 
+
     def left(self):
         self.image = player_image270
         other = pygame.sprite.spritecollideany(self, tiles_group)
-        collide = pygame.sprite.spritecollideany(self, enemy_group)
-        if collide:
-            collide.move()
-        if not other or other.rect.y < self.rect.y:
-            self.rect.y += self.step
+
+        if not other or other.rect.x > self.rect.x:
+            self.rect.x -= self.step
 
     def right(self):
         self.image = player_image90
         other = pygame.sprite.spritecollideany(self, tiles_group)
-        collide = pygame.sprite.spritecollideany(self, enemy_group)
-        if collide:
-            collide.move()
-        elif not other or other.rect.y < self.rect.y:
-            self.rect.y += self.step
+
+        if not other or other.rect.x < self.rect.x:
+            self.rect.x += self.step
 
     def up(self):
         self.image = player_image0
         other = pygame.sprite.spritecollideany(self, tiles_group)
-        collide = pygame.sprite.spritecollideany(self, enemy_group)
-        if collide:
-            collide.move()
-        elif not other or other.rect.y < self.rect.y:
-            self.rect.y += self.step
+        print(1)
+        if not other or other.rect.y > self.rect.y:
+            self.rect.y -= self.step
 
     def down(self):
         self.image = player_image180
         other = pygame.sprite.spritecollideany(self, tiles_group)
-        collide = pygame.sprite.spritecollideany(self, enemy_group)
-        if collide:
-            collide.move()
-        elif not other or other.rect.y < self.rect.y:
+        if not other or other.rect.y < self.rect.y:
             self.rect.y += self.step
 
     def coords(self):
@@ -168,6 +160,13 @@ class Enemy(pygame.sprite.Sprite):
             self.kill()
 
     def update(self, *args, **kwargs):
+        collide = pygame.sprite.spritecollideany(self, player_group)
+        col = pygame.sprite.spritecollideany(self, enemy_group)
+        if collide:
+            self.move()
+        if col:
+            self.move()
+            col.move()
         if pygame.sprite.spritecollideany(self, tiles_group):
             self.move()
         if self.rot == 0 or self.rot == 180:
@@ -185,6 +184,9 @@ def load_level(screen, level_num):
     missile_group.empty()
     tanks_group.empty()
     enemy_group.empty()
+    hp.clear()
+    for _ in range(hit_points):
+        hp.append(1)
     filename = f"levels/level_{level_num:02d}.txt"
     with open(filename, 'r') as mapFile:
         level = [[tile_type[s] for s in line.strip()] for line in mapFile]
@@ -220,7 +222,8 @@ def start_screen():
     intro_text = ["Правила игры",
                   "Клавиши со стрелками перемещают танк,",
                   "Пробел - стрельба,",
-                  "Ваша задача уничтожить все танки"]
+                  "Ваша задача уничтожить все танки",
+                  "Нажмите любую кнопку для продолжения"]
 
     load_level(screen, 0)
     tiles_group.draw(screen)
@@ -232,7 +235,7 @@ def start_screen():
     rect.y = 10
     screen.blit(string_rendered, rect)
     text_coord = offset + 130
-    for line in intro_text:
+    for line in intro_text[:-1]:
         string_rendered = font30.render(line, 1, pygame.Color('yellow'))
         rect = string_rendered.get_rect()
         text_coord += 10
@@ -240,7 +243,13 @@ def start_screen():
         rect.centerx = width // 2
         text_coord += rect.height
         screen.blit(string_rendered, rect)
-
+    string_rendered = font30.render(intro_text[-1], 1, pygame.Color('white'))
+    rect = string_rendered.get_rect()
+    text_coord += 100
+    rect.top = text_coord
+    rect.centerx = width // 2
+    text_coord += rect.height
+    screen.blit(string_rendered, rect)
     while True:
         for event in pygame.event.get():
             if event.type == pygame.QUIT:
@@ -252,14 +261,14 @@ def start_screen():
         clock.tick(FPS)
 
 
-def gameover():
+def gameover(win=False):
     pygame.time.set_timer(PLAYER_UP, 0)
     pygame.time.set_timer(PLAYER_DOWN, 0)
     pygame.time.set_timer(PLAYER_LEFT, 0)
     pygame.time.set_timer(PLAYER_RIGHT, 0)
-    pygame.time.set_timer(PLAYER_RELOAD, 0)
     pygame.time.set_timer(ENEMY_SHOOT, 0)
     while True:
+        screen.fill((0, 0, 0, 100))
         for event in pygame.event.get():
             if event.type == pygame.QUIT:
                 terminate()
@@ -268,6 +277,10 @@ def gameover():
                 return
         pygame.display.flip()
         clock.tick(FPS)
+
+def last_screen():
+    pass
+
 
 
 def health():
@@ -286,10 +299,11 @@ if __name__ == '__main__':
     FPS = 50
     missile_ready = 1
     enemy_shoot = 0
+    lvl_num = 1
 
     rotate = 0
-    hp = 3
-    hp = [1 for i in range(hp)]
+    hit_points = 3
+    hp = []
 
     # статистика
 
@@ -341,18 +355,25 @@ if __name__ == '__main__':
     start_screen()
 
     running = True
-    player, level_size_x, level_size_y = load_level(screen, 1)
+    player, level_size_x, level_size_y = load_level(screen, lvl_num)
     while running:
         for event in pygame.event.get():
             if event.type == pygame.QUIT:
                 running = False
+            if hp.count(1) == 0:
+                gameover()
+                start_screen()
+                lvl_num = 1
+                player, level_size_x, level_size_y = load_level(screen, lvl_num)
+            if len(enemy_group) == 0:
+                lvl_num = min(lvl_num + 1, 3)
+                gameover(True)
+                player, level_size_x, level_size_y = load_level(screen, lvl_num)
             if event.type == PLAYER_RELOAD:
                 missile_ready = 1
-
             if event.type == PLAYER_LEFT:
                 rotate = 270
                 player.left()
-
             elif event.type == PLAYER_RIGHT:
                 rotate = 90
                 player.right()
