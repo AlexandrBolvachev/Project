@@ -41,7 +41,6 @@ class Player(pygame.sprite.Sprite):
             tile_size * pos_x, tile_size * pos_y + offset)
         self.step = 2
 
-
     def left(self):
         self.image = player_image270
         collide = pygame.sprite.spritecollideany(self, enemy_group)
@@ -150,7 +149,7 @@ class Enemy(pygame.sprite.Sprite):
         self.pos_x = pos_x
         self.pos_y = pos_y
         self.rot = rot
-        self.hp = 3
+        self.hp = lvl_num + 2
         self.get_image1()
         self.rect = self.image.get_rect().move(
             tile_size * pos_x, tile_size * pos_y + offset)
@@ -174,8 +173,9 @@ class Enemy(pygame.sprite.Sprite):
         self.step = -self.step
 
     def hit(self):
-        global cnt_enemy_destroyed
+        global cnt_enemy_destroyed, cnt_hits
         self.hp -= 1
+        cnt_hits += 1
         if self.hp == 0:
             cnt_enemy_destroyed += 1
             self.kill()
@@ -282,15 +282,50 @@ def start_screen():
         clock.tick(FPS)
 
 
-def gameover():
+def gameover(win=False):
     pygame.time.set_timer(PLAYER_UP, 0)
     pygame.time.set_timer(PLAYER_DOWN, 0)
     pygame.time.set_timer(PLAYER_LEFT, 0)
     pygame.time.set_timer(PLAYER_RIGHT, 0)
     pygame.time.set_timer(ENEMY_SHOOT, 0)
+    text = [
+        "Уничтожено:", str(cnt_enemy_destroyed),
+        "Выстрелов:", str(cnt_shots_fire),
+        "Попаданий:", str(cnt_hits)
+    ]
     r = pygame.Surface(size, pygame.SRCALPHA)
     r.fill((0, 0, 0, 230))
     screen.blit(r, (0, 0))
+    font90 = pygame.font.Font(None, 90)
+    if win:
+        string_rendered = font90.render('Победа', 1, 'yellow')
+    else:
+        string_rendered = font90.render('Поражение', 1, 'red')
+    rect = string_rendered.get_rect()
+    rect.centerx = width // 2
+    rect.y = 10
+    screen.blit(string_rendered, rect)
+    font30 = pygame.font.Font(None, 30)
+    text_coord = offset + 130
+    for i in range(0, len(text), 2):
+        string_rendered = font30.render(text[i], 1, pygame.Color('yellow'))
+        string_rendered1 = font30.render(text[i + 1], 1, pygame.Color('yellow'))
+
+        rect = string_rendered.get_rect()
+        # text_coord += 10
+        rect.top = text_coord
+        rect.x = width // 2 - 150
+        # text_coord += rect.height
+        screen.blit(string_rendered, rect)
+
+        rect = string_rendered1.get_rect()
+        rect.top = text_coord
+        text_coord += 10
+        rect.x = width // 2 + 20
+        text_coord += rect.height
+
+        screen.blit(string_rendered1, rect)
+
     while True:
         for event in pygame.event.get():
             if event.type == pygame.QUIT:
@@ -301,9 +336,9 @@ def gameover():
         pygame.display.flip()
         clock.tick(FPS)
 
+
 def last_screen():
     pass
-
 
 
 def health():
@@ -333,6 +368,9 @@ if __name__ == '__main__':
     cnt_hits = 0
     cnt_shots_fire = 0
     cnt_enemy_destroyed = 0
+    cnt_hits_all = 0
+    cnt_shots_fire_all = 0
+    cnt_enemy_destroyed_all = 0
 
     all_sprites = pygame.sprite.Group()
     tiles_group = pygame.sprite.Group()
@@ -387,22 +425,41 @@ if __name__ == '__main__':
                 gameover()
                 lvl_num = 0
                 start_screen()
+                lvl_num += 1
                 player, level_size_x, level_size_y = load_level(screen, lvl_num)
                 enemy_shoot_flag = True
+
+                cnt_hits = 0
+                cnt_shots_fire = 0
+                cnt_enemy_destroyed = 0
+                cnt_hits_all = 0
+                cnt_shots_fire_all = 0
+                cnt_enemy_destroyed_all = 0
+            elif len(enemy_group) == 0:
+                lvl_num += 1
+                if lvl_num == 4:
+                    lvl_num = 0
+                    last_screen()
+                    start_screen()
+                    player, level_size_x, level_size_y = load_level(screen, lvl_num)
+                    enemy_shoot_flag = True
+                else:
+                    gameover(True)
+                    player, level_size_x, level_size_y = load_level(screen, lvl_num)
+                    enemy_shoot_flag = True
+
+                cnt_hits_all += cnt_hits
+                cnt_shots_fire_all += cnt_shots_fire
+                cnt_enemy_destroyed_all += cnt_enemy_destroyed
+
+                cnt_hits = 0
+                cnt_shots_fire = 0
+                cnt_enemy_destroyed = 0
 
             if enemy_shoot_flag:
                 pygame.time.set_timer(ENEMY_SHOOT, 200)
                 enemy_shoot_flag = False
 
-            if len(enemy_group) == 0:
-                lvl_num += 1
-                if lvl_num == 4:
-                    lvl_num = 0
-                    last_screen()
-                else:
-                    gameover()
-                    player, level_size_x, level_size_y = load_level(screen, lvl_num)
-                    enemy_shoot_flag = True
             if event.type == ENEMY_SHOOT:
                 for sprite in enemy_group:
                     sprite.shoot()
