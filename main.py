@@ -1,6 +1,7 @@
 import sys
 from random import randrange
 
+import sqlite3
 import pygame
 
 
@@ -43,39 +44,39 @@ class Player(pygame.sprite.Sprite):
 
     def left(self):
         self.image = player_image270
-        collide = pygame.sprite.spritecollideany(self, enemy_group)
         other = pygame.sprite.spritecollideany(self, tiles_group)
-        if collide:
-            collide.move()
-        elif not other or other.rect.x > self.rect.x:
+        self.update()
+        if (not other or other.rect.x > self.rect.x) and self.move:
             self.rect.x -= self.step
 
     def right(self):
         self.image = player_image90
-        collide = pygame.sprite.spritecollideany(self, enemy_group)
         other = pygame.sprite.spritecollideany(self, tiles_group)
-        if collide:
-            collide.move()
-        elif not other or other.rect.x < self.rect.x:
+        self.update()
+        if (not other or other.rect.x < self.rect.x) and self.move:
             self.rect.x += self.step
 
     def up(self):
         self.image = player_image0
-        collide = pygame.sprite.spritecollideany(self, enemy_group)
         other = pygame.sprite.spritecollideany(self, tiles_group)
-        if collide:
-            collide.move()
-        elif not other or other.rect.y > self.rect.y:
+        self.update()
+        if (not other or other.rect.y > self.rect.y) and self.move:
             self.rect.y -= self.step
 
     def down(self):
         self.image = player_image180
-        collide = pygame.sprite.spritecollideany(self, enemy_group)
         other = pygame.sprite.spritecollideany(self, tiles_group)
+        self.update()
+        if (not other or other.rect.y < self.rect.y) and self.move:
+            self.rect.y += self.step
+
+    def update(self):
+        collide = pygame.sprite.spritecollideany(self, enemy_group)
         if collide:
             collide.move()
-        elif not other or other.rect.y < self.rect.y:
-            self.rect.y += self.step
+            self.move = False
+        else:
+            self.move = True
 
     def coords(self):
         return self.rect
@@ -181,10 +182,7 @@ class Enemy(pygame.sprite.Sprite):
             self.kill()
 
     def update(self, *args, **kwargs):
-        # collide = pygame.sprite.spritecollideany(self, player_group)
         col = pygame.sprite.spritecollideany(self, enemy_group)
-        # if collide:
-        #     self.move()
         if col:
             self.move()
             col.move()
@@ -312,10 +310,8 @@ def gameover(win=False):
         string_rendered1 = font30.render(text[i + 1], 1, pygame.Color('yellow'))
 
         rect = string_rendered.get_rect()
-        # text_coord += 10
         rect.top = text_coord
         rect.x = width // 2 - 150
-        # text_coord += rect.height
         screen.blit(string_rendered, rect)
 
         rect = string_rendered1.get_rect()
@@ -338,8 +334,111 @@ def gameover(win=False):
 
 
 def last_screen():
-    pass
+    con = sqlite3.connect("results.sqlite")
+    cur = con.cursor()
+    data = list(cur.execute(
+        f"""SELECT destroyed, shots, hits, level, victory_or_defeat FROM data WHERE victory_or_defeat = 'победа'"""))
+    if data:
+        data.sort(key=lambda x: x[1])
+    else:
+        data = list(cur.execute(
+            f"""SELECT destroyed, shots, hits, level, victory_or_defeat FROM data"""))
+        data.sort(key=lambda x: (-x[3], -x[0], -x[2], x[1]))
+    con.commit()
+    text = [
+        "Уничтожено:", str(cnt_enemy_destroyed),
+        "Выстрелов:", str(cnt_shots_fire),
+        "Попаданий:", str(cnt_hits)
+    ]
 
+    if not data:
+        best_game = ['', '', '', '', '']
+    else:
+        best_game = list(data[0])
+
+    screen.fill('black')
+    load_level(screen, 0)
+    tiles_group.draw(screen)
+    font90 = pygame.font.Font(None, 90)
+    font30 = pygame.font.Font(None, 30)
+
+    string_rendered = font90.render('Победа', 1, 'yellow')
+    rect = string_rendered.get_rect()
+    rect.centerx = width // 2
+    rect.y = 10
+    screen.blit(string_rendered, rect)
+
+    text_coord = offset + 120
+
+    string_rendered = font30.render('моя игра', 1, 'yellow')
+    rect = string_rendered.get_rect()
+    rect.centerx = width // 4 - 50
+    rect.y = text_coord
+    text_coord += 10
+    text_coord += rect.height
+    screen.blit(string_rendered, rect)
+
+    for i in range(0, len(text), 2):
+        string_rendered = font30.render(text[i], 1, pygame.Color('yellow'))
+        string_rendered1 = font30.render(text[i + 1], 1, pygame.Color('yellow'))
+
+        rect = string_rendered.get_rect()
+        rect.top = text_coord
+        rect.x = width // 4 - 150
+        screen.blit(string_rendered, rect)
+
+        rect = string_rendered1.get_rect()
+        rect.top = text_coord
+        text_coord += 10
+        rect.x = width // 4 + 20
+        text_coord += rect.height
+
+        screen.blit(string_rendered1, rect)
+
+    text_coord = offset + 120
+
+    string_rendered = font30.render('лучшая игра', 1, 'yellow')
+    rect = string_rendered.get_rect()
+    rect.centerx = width // 4 * 3 - 50
+    rect.y = text_coord
+    text_coord += 10
+    text_coord += rect.height
+    screen.blit(string_rendered, rect)
+
+    text = [
+        "Уничтожено:", str(best_game[0]),
+        "Выстрелов:", str(best_game[1]),
+        "Попаданий:", str(best_game[2]),
+        "Уровень:", str(best_game[3]),
+        "Тип:", best_game[-1]
+    ]
+
+    for i in range(0, len(text), 2):
+        string_rendered = font30.render(text[i], 1, pygame.Color('yellow'))
+        string_rendered1 = font30.render(text[i + 1], 1, pygame.Color('yellow'))
+
+        rect = string_rendered.get_rect()
+        rect.top = text_coord
+        rect.x = width // 4 * 3 - 150
+        screen.blit(string_rendered, rect)
+
+        rect = string_rendered1.get_rect()
+        rect.top = text_coord
+        text_coord += 10
+        rect.x = width // 4 * 3 + 20
+        text_coord += rect.height
+
+        screen.blit(string_rendered1, rect)
+
+    while True:
+        for event in pygame.event.get():
+            if event.type == pygame.QUIT:
+                terminate()
+            elif event.type == pygame.KEYDOWN or \
+                    event.type == pygame.MOUSEBUTTONDOWN:
+                return
+        pygame.display.flip()
+        clock.tick(FPS)
 
 def health():
     for i in range(min(len(hp), 10)):
@@ -418,10 +517,21 @@ if __name__ == '__main__':
     player, level_size_x, level_size_y = load_level(screen, lvl_num)
     enemy_shoot_flag = True
     while running:
+
         for event in pygame.event.get():
             if event.type == pygame.QUIT:
                 running = False
             if hp.count(1) == 0:
+                cnt_hits_all += cnt_hits
+                cnt_shots_fire_all += cnt_shots_fire
+                cnt_enemy_destroyed_all += cnt_enemy_destroyed
+
+                con = sqlite3.connect("results.sqlite")
+                cur = con.cursor()
+                cur.execute(
+                    f"""INSERT INTO data(destroyed, shots, hits, level, victory_or_defeat)
+                    VALUES({cnt_enemy_destroyed_all}, {cnt_shots_fire_all}, {cnt_hits_all}, {lvl_num}, 'поражение')""")
+                con.commit()
                 gameover()
                 lvl_num = 0
                 start_screen()
@@ -432,25 +542,36 @@ if __name__ == '__main__':
                 cnt_hits = 0
                 cnt_shots_fire = 0
                 cnt_enemy_destroyed = 0
+
                 cnt_hits_all = 0
                 cnt_shots_fire_all = 0
                 cnt_enemy_destroyed_all = 0
-            elif len(enemy_group) == 0:
+
+            elif len(enemy_group) == 0 and lvl_num > 0:
                 lvl_num += 1
-                if lvl_num == 4:
-                    lvl_num = 0
+                cnt_hits_all += cnt_hits
+                cnt_shots_fire_all += cnt_shots_fire
+                cnt_enemy_destroyed_all += cnt_enemy_destroyed
+                if lvl_num >= 4:
+                    lvl_num = 1
                     last_screen()
+                    con = sqlite3.connect("results.sqlite")
+                    cur = con.cursor()
+                    cur.execute(
+                        f"""INSERT INTO data(destroyed, shots, hits, level, victory_or_defeat)
+                        VALUES({cnt_enemy_destroyed_all}, {cnt_shots_fire_all}, {cnt_hits_all}, {3}, 'победа')""")
+                    con.commit()
                     start_screen()
                     player, level_size_x, level_size_y = load_level(screen, lvl_num)
                     enemy_shoot_flag = True
+                    cnt_hits_all = 0
+                    cnt_shots_fire_all = 0
+                    cnt_enemy_destroyed_all = 0
+
                 else:
                     gameover(True)
                     player, level_size_x, level_size_y = load_level(screen, lvl_num)
                     enemy_shoot_flag = True
-
-                cnt_hits_all += cnt_hits
-                cnt_shots_fire_all += cnt_shots_fire
-                cnt_enemy_destroyed_all += cnt_enemy_destroyed
 
                 cnt_hits = 0
                 cnt_shots_fire = 0
